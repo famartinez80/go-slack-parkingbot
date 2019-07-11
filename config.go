@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/spf13/viper"
 )
 
@@ -14,7 +13,7 @@ type config struct {
 	DataSource        string `mapstructure:"data_source"`
 }
 
-func initConfig() *config {
+func initConfig() (*config, error) {
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("parking")
@@ -34,8 +33,8 @@ func initConfig() *config {
 	conf := &config{}
 	err := viper.Unmarshal(conf)
 	if err != nil {
-		fmt.Printf("Unable to decode into config struct, %v", err)
+		return nil, err
 	}
 
-	return conf
+	return conf, nil
 }

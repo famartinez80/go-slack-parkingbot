@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/golang/parkingbot/models"
 	"github.com/nlopes/slack"
 	"log"
@@ -18,10 +17,12 @@ func main() {
 func _main(args []string) int {
 	// Listening slack event and response
 	log.Printf("[INFO] Start slack event listening")
-	config := initConfig()
 
-	fmt.Println(*config)
-
+	config, err := initConfig()
+	if err != nil {
+		log.Printf("[ERROR] %s", err)
+		return 1
+	}
 	client := slack.New(config.BotToken)
 	rtm := client.NewRTM()
 

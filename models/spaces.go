@@ -1,53 +1,42 @@
 package models
 
+import "github.com/jinzhu/gorm"
+
 type Spaces struct {
-	IdSpace     int
-	NumberSpace string
-	Available   int
-	IdUser      *string
+	ID          uint    `json:"id"`
+	NumberSpace string  `json:"numbers_pace"`
+	Available   int     `json:"available"`
+	IdUser      *string `json:"id_user"`
 }
 
 func (db *DB) AllSpaces() ([]*Spaces, error) {
 
-	rows, err := db.Query("SELECT * FROM parking.spaces WHERE available = 1;")
+	var spc []*Spaces
+	err := db.Where("available = ?", 1).Find(&spc).Error
 	if err != nil {
-		return nil, err
-	}
-
-	spc := make([]*Spaces, 0)
-	for rows.Next() {
-		sp := new(Spaces)
-		err := rows.Scan(&sp.IdSpace, &sp.NumberSpace, &sp.Available, &sp.IdUser)
-		if err != nil {
-			return nil, err
-		}
-		spc = append(spc, sp)
-	}
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 	return spc, nil
 }
 
-func (db *DB) UpdateSpace(available int, idUser, numberSpace string) error {
-	update, err := db.Prepare("UPDATE parking.spaces SET available = ?, idUser = ?  WHERE numberSpace=?")
+func (db *DB) UpdateSpace(space *Spaces) error {
+
+	err := db.Save(&space).Error
 	if err != nil {
 		return err
 	}
-
-	_, err = update.Exec(available, idUser, numberSpace)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-//func (db *DB) spaceByUser(idUser string) {
-//	rows, err := db.Query("SELECT * FROM parking.spaces WHERE available = 1;")
-//	if err != nil {
-//		return nil, err
-//	}
+func (db *DB) SpaceByUser(idUser string) (*Spaces, error) {
 
-//	defer rows.Close()
-//}
+	var spc Spaces
+	err := db.Where("id_user = ?", idUser).Find(&spc).Error
+	if err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &spc, nil
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/golang/parkingbot/models"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -57,17 +58,23 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	action := message.ActionCallback.AttachmentActions[0]
 	switch action.Name {
 	case actionSelect:
-		value := action.Value
+
+		space := &models.Spaces{}
+		err := toStruct(action.Value, space)
+		if err != nil {
+			fmt.Printf("Error: %s\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 
 		attachment := slack.Attachment{
-			Text:       fmt.Sprintf("Can you park in parking lot number %s ?", strings.Title(value)),
+			Text:       fmt.Sprintf("Can you park in parking lot number %s ?", strings.Title(space.NumberSpace)),
 			CallbackID: "confirmParking",
 			Actions: []slack.AttachmentAction{
 				{
 					Name:  actionParking,
 					Text:  "Yes",
 					Type:  typeButton,
-					Value: value,
+					Value: action.Value,
 				},
 				{
 					Name: actionCancel,
@@ -79,34 +86,84 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		options := slack.MsgOptionAttachments(attachment)
 
-		_, _, err := h.slack.slackClient.PostMessage(message.Channel.ID, options)
+		_, _, err = h.slack.slackClient.PostMessage(message.Channel.ID, options)
 		if err != nil {
 			fmt.Printf("Error: %s\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
+
 		return
 	case actionParking:
 
-		err := h.slack.db.UpdateSpace(0, message.User.ID, action.Value)
+		space, err := h.slack.db.SpaceByUser(message.User.ID)
+		if err != nil {
+			fmt.Printf("Error: %s\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		if space != nil {
+			text := fmt.Sprintf("You already have the parking lot %s assigned. :neutral_face:", space.NumberSpace)
+			h.slack.responseMessage(text, message.Channel.ID)
+		} else {
+			space = &models.Spaces{}
+			err = toStruct(action.Value, space)
+			if err != nil {
+				fmt.Printf("Error: %s\n", err)
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+
+			space.IdUser = &message.User.ID
+			space.Available = 0
+			err = h.slack.db.UpdateSpace(space)
+			if err != nil {
+				fmt.Printf("Error: %s\n", err)
+				w.WriteHeader(http.StatusInternalServerError)
+			} else {
+				h.slack.responseMessage(":+1:", message.Channel.ID)
+			}
+		}
+
+		return
+
+	case actionConfirmGoOut:
+
+		space := &models.Spaces{}
+		err := toStruct(action.Value, space)
+		if err != nil {
+			fmt.Printf("Error: %s\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		space.IdUser = nil
+		space.Available = 1
+		err = h.slack.db.UpdateSpace(space)
 		if err != nil {
 			fmt.Printf("Error: %s\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
-			h.responseMessage(":+1:", message.Channel.ID)
+			text := fmt.Sprintf("The parking lot %s has been released, Thank you!", space.NumberSpace)
+			h.slack.responseMessage(text, message.Channel.ID)
 		}
+
 		return
+
 	case actionCancel:
+
 		text := fmt.Sprintf(":x: @%s canceled the request", message.User.Name)
-		h.responseMessage(text, message.Channel.ID)
+		h.slack.responseMessage(text, message.Channel.ID)
 		return
 	default:
+
 		text := "I'm so sorry, I don't understand what you say, I'm learning!! Thanks."
-		h.responseMessage(text, message.Channel.ID)
+		h.slack.responseMessage(text, message.Channel.ID)
+		return
 	}
 }
 
-// responseMessage response to the original slackbutton enabled message.
-// It removes button and replace it with message which indicate how bot will work
-func (h interactionHandler) responseMessage(message, channelID string) {
-	h.slack.rtm.SendMessage(h.slack.rtm.NewOutgoingMessage(message, channelID))
+func toStruct(s string, i interface{}) error {
+	err := json.Unmarshal([]byte(s), i)
+	if err != nil {
+		return err
+	}
+	return nil
 }

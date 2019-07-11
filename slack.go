@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/golang/parkingbot/models"
 	"github.com/nlopes/slack"
@@ -11,9 +12,11 @@ import (
 
 const (
 	// action is used for slack attament action.
-	actionSelect  = "select"
-	actionParking = "parking"
-	actionCancel  = "cancel"
+	actionSelect       = "select"
+	actionParking      = "parking"
+	actionCancel       = "cancel"
+	actionGoOut        = "goOut"
+	actionConfirmGoOut = "confirmGoOut"
 
 	typeButton = "button"
 
@@ -88,12 +91,48 @@ func (s *Slack) handleMessageEvent(ev *slack.MessageEvent) error {
 		if err != nil {
 			return err
 		}
+
 	} else if ev.User != s.rtm.GetInfo().User.ID && matchedRegister {
 
 	} else if ev.User != s.rtm.GetInfo().User.ID && matchedGoOut {
 
+		space, err := s.db.SpaceByUser(ev.User)
+		if err != nil {
+			fmt.Printf("Error: %s\n", err)
+			s.responseMessage("It's been an error, I'm sorry", ev.Channel)
+		}
+		if space != nil {
+
+			attachment := slack.Attachment{
+				Text:       fmt.Sprintf("Do you want to release parking lot number %s ?", strings.Title(space.NumberSpace)),
+				CallbackID: "confirmParking",
+				Actions: []slack.AttachmentAction{
+					{
+						Name:  actionConfirmGoOut,
+						Text:  "Yes",
+						Type:  typeButton,
+						Value: toJson(space),
+					},
+					{
+						Name: actionCancel,
+						Text: "No",
+						Type: typeButton,
+					},
+				},
+			}
+
+			options := slack.MsgOptionAttachments(attachment)
+			_, _, err = s.slackClient.PostMessage(ev.Channel, options)
+			if err != nil {
+				return err
+			}
+
+		} else {
+			s.responseMessage("You don't have a parking lot assigned. :sad_face:", ev.Channel)
+		}
+
 	} else if ev.User != "" {
-		s.rtm.SendMessage(s.rtm.NewOutgoingMessage("I'm so sorry, I don't understand what you say, I'm learning!! Thanks.", ev.Channel))
+		s.responseMessage("I'm so sorry, I don't understand what you say, I'm learning!! Thanks.", ev.Channel)
 	}
 
 	return nil
@@ -111,9 +150,10 @@ func (s *Slack) getSpaces() ([]slack.AttachmentAction, error) {
 			Name:  actionSelect,
 			Text:  sp.NumberSpace,
 			Type:  typeButton,
-			Value: sp.NumberSpace,
+			Value: toJson(sp),
 		})
 	}
+
 	return spaces, nil
 }
 
@@ -142,4 +182,12 @@ func (s *Slack) where(spaces []slack.AttachmentAction) slack.MsgOption {
 	}
 
 	return slack.MsgOptionAttachments(attachments...)
+}
+
+func toJson(i interface{}) string {
+	b, _ := json.Marshal(i)
+	return string(b)
+}
+func (s *Slack) responseMessage(text, channel string) {
+	s.rtm.SendMessage(s.rtm.NewOutgoingMessage(text, channel))
 }

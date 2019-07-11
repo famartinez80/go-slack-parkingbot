@@ -1,1 +1,1 @@
-"# A Golang Bot" 
+A Golang Bot 
