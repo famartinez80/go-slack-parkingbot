@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/golang/parkingbot/models"
+	"github.com/go-slack-parkingbot/models"
 	"github.com/nlopes/slack"
 	"log"
 	"net/http"

@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/golang/parkingbot/models"
+	"github.com/go-slack-parkingbot/models"
 	"github.com/nlopes/slack"
 	"log"
 	"regexp"
