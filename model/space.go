@@ -1,17 +1,18 @@
-package models
+package model
 
 import "github.com/jinzhu/gorm"
 
-type Spaces struct {
+type Space struct {
 	ID          uint    `json:"id"`
 	NumberSpace string  `json:"numbers_pace"`
 	Available   int     `json:"available"`
+	BlockID     int     `json:"block_id"`
 	IdUser      *string `json:"id_user"`
 }
 
-func (db *DB) AllSpaces() ([]*Spaces, error) {
+func (db *DB) AllSpaces() ([]*Space, error) {
 
-	var spc []*Spaces
+	var spc []*Space
 	err := db.Where("available = ?", 1).Find(&spc).Error
 	if err != nil {
 		return nil, err
@@ -19,19 +20,19 @@ func (db *DB) AllSpaces() ([]*Spaces, error) {
 	return spc, nil
 }
 
-func (db *DB) UpdateSpace(space *Spaces) error {
+func (db *DB) UpdateSpace(s *Space) error {
 
-	err := db.Save(&space).Error
+	err := db.Save(&s).Error
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (db *DB) SpaceByUser(idUser string) (*Spaces, error) {
+func (db *DB) SpaceByUser(id string) (*Space, error) {
 
-	var spc Spaces
-	err := db.Where("id_user = ?", idUser).Find(&spc).Error
+	var spc Space
+	err := db.Where("id_user = ?", id).Find(&spc).Error
 	if err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 			return nil, nil

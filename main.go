@@ -1,7 +1,8 @@
 package main
 
 import (
-	"github.com/go-slack-parkingbot/models"
+	"github.com/go-slack-parkingbot/model"
+	"github.com/go-slack-parkingbot/parkingbot"
 	"github.com/nlopes/slack"
 	"log"
 	"net/http"
@@ -26,27 +27,27 @@ func _main(args []string) int {
 	client := slack.New(config.BotToken)
 	rtm := client.NewRTM()
 
-	db, err := models.InitDB(config.DataSource)
+	db, err := model.InitDB(config.DataSource)
 	if err != nil {
 		log.Printf("[ERROR] %s", err)
 		return 1
 	}
 
-	slackListener := &Slack{
-		slackClient: client,
-		rtm:         rtm,
-		db:          db,
-		botID:       config.BotID,
-		channelID:   config.ChannelID,
+	slackListener := &parkingbot.Slack{
+		SlackClient: client,
+		RTM:         rtm,
+		DB:          db,
+		BotID:       config.BotID,
+		ChannelID:   config.ChannelID,
 	}
 
 	go slackListener.ListenAndResponse()
 
 	// Register handler to receive interactive message
 	// responses from slack (kicked by user action)
-	http.Handle("/interaction", interactionHandler{
-		slack:             slackListener,
-		verificationToken: config.VerificationToken,
+	http.Handle("/interaction", parkingbot.InteractionHandler{
+		Slack:             slackListener,
+		VerificationToken: config.VerificationToken,
 	})
 
 	log.Printf("[INFO] Server listening on :%s", config.Port)

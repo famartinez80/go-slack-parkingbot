@@ -1,4 +1,4 @@
-package models
+package model
 
 import (
 	_ "github.com/go-sql-driver/mysql"
@@ -6,9 +6,15 @@ import (
 )
 
 type DataStore interface {
-	AllSpaces() ([]*Spaces, error)
-	UpdateSpace(*Spaces) error
-	SpaceByUser(idUser string) (*Spaces, error)
+	AllSpaces() ([]*Space, error)
+	UpdateSpace(*Space) error
+	SpaceByUser(string) (*Space, error)
+
+	CreateUser(User) error
+	FindUser(string) (*User, error)
+
+	CreateVehicle(Vehicle) error
+	FindVehicle(string) (*Vehicle, error)
 }
 
 type DB struct {
